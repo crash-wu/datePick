@@ -1,0 +1,533 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta charset="utf-8">
+		<title></title>
+		<link type="text/css" rel="stylesheet" href="./lib/jbox/jbox/jbox.css" />
+		<style type="text/css">
+			html,body{
+				padding: 0;
+				margin: 0;
+				height: 100%;
+				width: 100%;
+			}
+			.conditionBox{
+				font-size: 15px;
+				margin: 20px 20px 10px 20px;
+				font-family: "微软雅黑";
+				overflow: hidden;
+			}
+			.conditionBox .condition-child{
+				float: left;
+				margin-right: 15px;
+			}
+			.conditionBox .input1{
+				height: 20px;
+				width: 160px;
+				text-indent: 5px;
+			}
+			.conditionBox .button{
+				width: 100px;
+				height: 26px;
+				outline: none;
+				border-radius: 5px;
+				cursor: pointer;
+				margin-right: 5px;
+			}
+			.searchContent{
+				position: absolute;
+				top: 85px;
+				bottom: 20px;
+				left: 20px;
+				right: 20px;
+			}
+			.contentText{
+				position: absolute;
+				top: 20px;
+				bottom: 0;
+				left: 0;
+				right: 0;
+				overflow:auto;
+			}
+			.loading_window_box{
+				position: absolute;
+				top:0;
+				left:0;
+				width:100%;
+				height:100%;
+				background-color: rgba(227,218,154,0.5);
+			}
+			.loading_window{
+				background-color: rgba(154,227,208,0.3);
+			}
+			.export_table{
+				min-width: 100%;
+				border-collapse:collapse;
+			}
+			.export_table th,.export_table td{
+				padding : 3px;
+				text-align: center;
+			}
+			.export_table th{
+				font-weight: 600;
+			}
+			.conditionBox .select1{
+				height: 26px;
+				width: 160px;
+			}
+			.showData{
+				margin-left: 20px;
+			}
+		</style>
+	</head>
+	<body>
+		<div class="conditionBox">
+			<div class="condition-child">
+				<span>城市名称 : </span><input type="text" name="" value="" class="input1" id="areaName"/>
+			</div>
+			<div class="condition-child">
+				<span>城市拼音 : </span><input type="text" name="" value="" class="input1" id="areaCode"/>
+			</div>
+			<div class="condition-child">
+				<span>药店类型 : </span> <select name="" class="select1" id="typeCode">
+					<option value="D20">社区医疗</option>
+					<option value="D30">药店</option>
+					<option value="D50">综合医院</option>
+					<option value="D60">专科医院</option>
+					<option value="D70">急救中心</option>
+					<option value="D80">康复中心</option>
+					<option value="DA0">诊所/卫生所</option>
+					<option value="DB1">疾病防治、疾病预防中心</option>
+					<option value="DD0">门诊、急诊部</option>
+				</select>
+			</div>
+			<div class="condition-child">
+				<button class="button" id="searchData">抓取数据</button>
+				<button class="button" id="export">导出数据</button>
+			</div>
+		</div>
+		<div class="showData">
+			<div>
+				<span>抓取数据总条数:</span><span id="allNum">0</span>&nbsp;&nbsp;&nbsp;<span>数据转换成功写入条数:</span><span id="okNum">0</span>&nbsp;&nbsp;&nbsp; <span >数据转换失败条数:</span><span id="offNum">0</span>
+			</div>
+		</div>
+		<div class="searchContent">
+				<span>
+					搜索内容：
+				</span>
+				<div id="contentText" class="contentText">
+					<table id="export_table" class="export_table">
+						<thead>
+                            <tr>
+                                <th>name</th>
+                                <th>address</th>
+                                <th>location</th>
+                                <th>location-bd</th>
+                                <th>pname</th>
+                                <th>cname</th>
+                                <th>dname</th>
+                                <th>vname</th>
+                                <th>address-gd</th>
+                                <th>status</th>
+                                <th>fitler</th>
+                                <th>fitler-grade</th>
+                                <th>shopGeoCode</th>
+                                <th>shopBindType</th>
+                                <th>location_Type</th>
+                                <th>filter-grade</th>
+                                <th>name-source</th>
+                            </tr>
+                        </thead>
+                        <tbody id="export_tbody">
+                        	
+                        </tbody>
+					</table>
+				</div>
+		</div>
+		<script type="text/javascript" src="./lib/jquery-1.11.3.min.js"></script>
+		<script type="text/javascript" src="./lib/jbox/jquery.jBox-2.3.min.js"></script>
+		<script type="text/javascript" src="./lib/jbox/i18n/jquery.jBox-zh-CN.js"></script>
+		<script>
+			jQuery.browser={};(function(){jQuery.browser.msie=false; jQuery.browser.version=0;if(navigator.userAgent.match(/MSIE ([0-9]+)./)){ jQuery.browser.msie=true;jQuery.browser.version=RegExp.$1;}})();
+		    
+			function initLoadingWindow(text){
+                var div = $('<div class="loading_window_box"><div class="loading_window" style="z-index:999;width:200px;height:100px;position:absolute;left:50%;top:50%;margin-left:-100px;margin-top:-35px;background:#fff;text-align:center;padding-top:10px;"><p><img src="./images/refresh.gif" /></p><p><span>'+ text +'</span></p></div></div>');
+                $('body').append(div);
+            };
+             function removeLoadingWindow(){
+                var loading_window = $('.loading_window_box');
+                if(loading_window.length){
+                    $('body').find('.loading_window_box').remove();
+                }
+            };
+			$(function(){
+				var okNum = 0;
+				var noNum = 0;
+				var allNum = 0;
+				var countNum = 0;
+				var timer = null;
+				var index = 0;
+				var bdindex = 0;
+				$("#export").click(function(){
+					var tableId = "#export_table";
+					var filename = $("#areaName").val() + "-" + $('#typeCode').find('option:selected').text();
+					exportToCsv(filename,tableId);
+			    });
+			    function exportToCsv(filename,tableId) {
+					var rows = [];
+					var title = [];
+					var clean_text = function(text){
+				        text = text.replace(/"/g, '""');
+				        return '"'+text+'"';
+				   	};
+			        $(tableId).find('tr').each(function(){
+						var data = [];
+						$(this).find('th').each(function(){
+		                    var text = clean_text($(this).text());
+							title.push(text);
+						});
+						$(this).find('td').each(function(){
+		                    var text = clean_text($(this).text());
+							data.push(text);
+						});
+						data = data.join(",");
+						rows.push(data);
+					});
+					title = title.join(",");
+					rows = rows.join("\n");
+	
+					var csvFile = title + rows;
+			        var compatible = "\uFEFF";
+			        var blob = new Blob([compatible + csvFile], { type: 'text/csv;charset=utf-8;' });
+			        if (navigator.msSaveBlob) { // IE 10+
+			            navigator.msSaveBlob(blob, filename);
+			        } else {
+			            var link = document.createElement("a");
+			            if (link.download !== undefined) { // feature detection
+			                // Browsers that support HTML5 download attribute
+			                var url = URL.createObjectURL(blob);
+			                link.setAttribute("href", url);
+			                link.setAttribute("download", filename + '.csv');
+			                link.style.visibility = 'hidden';
+			                document.body.appendChild(link);
+			                link.click();
+			                document.body.removeChild(link);
+			            }
+			        }
+			    };
+			    $("#searchData").click(function(){
+			    	$('#export_tbody').html("");
+			    	$('#allNum').text(0);
+			    	$('#okNum').text(0);
+			    	$("#offNum").text(0);
+			    	var domainName = "http://poi.mapbar.com/";
+			    	var areaName = $("#areaName").val();
+			    	var areaCode = $("#areaCode").val();
+			    	var typeCode = $('#typeCode').find('option:selected').val();
+			    	areaName = areaName.replace(/(^\s+)|(\s+$)/g,"");
+			    	areaCode = areaCode.replace(/(^\s+)|(\s+$)/g,"");
+			    	if(areaName==""){
+			    		$.jBox.info('请输入查询城市名称','提示',{top:'40%'});
+			    		return;
+			    	}
+			    	if(areaCode==""){
+			    		$.jBox.info('请输入查询城市拼音','提示',{top:'40%'});
+			    		return;
+			    	}
+			    	var regWorld = new RegExp(/[a-z,A-Z]/g);
+			    	var regChinese = new RegExp(/^[\u4e00-\u9fa5]+$/);
+			    	if(!regChinese.test(areaName)){
+			    		$.jBox.info('请输入正确的城市名称!','提示',{top:'40%'});
+			    		return;
+			    	}
+			    	if(!regWorld.test(areaCode)){
+			    		$.jBox.info('请输入正确的城市拼音!','提示',{top:'40%'});
+			    		return;
+			    	}
+			    	initLoadingWindow("正在抓取数据...");
+			    	var urlLink = domainName + areaCode+"/"+ typeCode
+			    	console.log(urlLink);
+					$.ajax({
+						url:"getName.php",
+						type:"GET",
+						dataType:'json',
+						data:{
+							urlLink:urlLink
+						},
+						success:function(data){
+							if(data.code == 404){
+								removeLoadingWindow();
+								$.jBox.error('页面不存在或网络异常!','提示',{top:'40%'});
+							}else if(data.code == 400){
+								removeLoadingWindow();
+								$.jBox.error('抓取数据失败!','提示',{top:'40%'});
+							}else if(data.code == 200){
+								var result = data.result;
+								if(result.length==0){
+									removeLoadingWindow();
+									$.jBox.error('抓取的种类数据为空!','提示',{top:'40%'});
+								}else{
+									removeLoadingWindow();
+									initLoadingWindow("正在转换写入数据...");
+									buildList(result,areaName);
+								}
+							}
+						},
+						error:function(data){
+							//json 转 字符串
+							removeLoadingWindow();
+							$.jBox.error('网站服务请求异常或网络异常!','提示',{top:'40%'});
+//							data = JSON.stringify(data);
+							console.log(data);
+						}
+					});
+			    });
+			    function timeChunk(ary,fn,count){
+				    var obj,self = this;
+				    var len =ary.length;
+				    var num = 1;
+				    
+				    if(self.t){
+				      clearInterval(self.t);
+				    }
+				
+				    var start = function(){
+				      for(var i=0;i<Math.min(count||1,ary.length);i++){
+				        var obj = ary.shift();
+				        fn(obj,num);
+				        num++;
+				      }
+				    }
+				    return function(){
+				      self.t = setInterval(function(){
+				        if(ary.length == 0){
+				          return clearInterval(self.t)
+				        }
+				        start();
+				      },20);
+				    }
+				};
+				function buildList(result,areaName){
+					$('#allNum').text(result.length);
+					var arr = result;
+					bdindex = 0;
+					index = 0;
+					countNum=0;
+					okNum = 0;
+					noNum = 0;
+					allNum = result.length; 
+					var renderAppend = timeChunk(arr,function(feat,i){
+						var name = feat;
+						gdGetMessage(name,areaName);
+					},2);
+					renderAppend();
+				};
+			    function gdGetMessage(name,areaName){
+					var url = 'http://restapi.amap.com/v3/place/text?key=4545233705058d936b933642e6530f6f&offset=10&page=1&keywords='+name+'&city='+areaName+'&types=090000';
+					 $.ajax({
+						type: "get",
+						url:url,
+						data: {},
+						dataType:'json',
+						success: function(result){
+							nameContrast(areaName,name,result);
+						},
+						error:function(data){
+							console.log((index++)+'高德接口请求失败了:'+name);
+							countNum = countNum+1;
+							noNum=noNum+1;
+							$("#offNum").text(noNum);
+							if(countNum == allNum){
+								removeLoadingWindow();
+								$.jBox.info('数据转换完毕','提示',{top:'40%'});
+							}
+						}
+				  	});
+			    };
+			    function nameContrast(areaName,name,result){
+			    	var pois = result.pois;
+			    	if(pois.length>0){
+			    		var _name = pois[0].name;
+			    		var gdLocation = pois[0].location;
+			    		gdGetAddress(areaName,gdLocation,_name);
+			    	}else{
+			    		bdGetMessage(areaName,name);
+			    	}
+			    };
+			    function bdGetMessage(areaName,name){
+					var url = 'http://api.map.baidu.com/place/v2/search?query='+name+'&region='+areaName+'&city_limit=true&output=json&ak=kGoAnw34FEtbZ4HkbM1EBCBSBCIih6xo';
+					 $.ajax({
+						type: "get",
+						url:url,
+						data: {},
+						dataType:'jsonp',
+						success: function(data){
+							bdGetNameAndLocation(areaName,data,name);
+						},
+						error:function(data){
+							countNum = countNum+1;
+							noNum=noNum+1;
+							$("#offNum").text(noNum);
+							if(countNum == allNum){
+								removeLoadingWindow();
+								$.jBox.info('数据转换完毕','提示',{top:'40%'});
+							}
+						}
+				  	});
+			    };
+			    function bdGetNameAndLocation(areaName,bdData,name){
+			    	var results = bdData.results;
+			    	if(results.length>0){
+			    		var _name = results[0].name;
+			    		var locationObj = results[0].location;
+			    		var bdLocation = locationObj.lng + ","+ locationObj.lat;
+			    		bdTogdLocation(_name,bdLocation,areaName);
+			    	}else{
+			    		countNum = countNum+1;
+			    		console.log((bdindex++)+'.百度数据查询为空：'+name);
+						noNum=noNum+1;
+						$("#offNum").text(noNum);
+						if(countNum == allNum){
+							removeLoadingWindow();
+							$.jBox.info('数据转换完毕','提示',{top:'40%'});
+						}
+			    	}
+			    };
+			    function bdTogdLocation(name,bdLocation,areaName){
+					var locations = bdLocation.split(",");
+					var x = (Number(locations[0])).toFixed(6);
+					var y = (Number(locations[1])).toFixed(6);
+					var url = "http://restapi.amap.com/v3/assistant/coordinate/convert?locations="+x+","+y+"&coordsys=baidu&output=json&key=4545233705058d936b933642e6530f6f";
+					 $.ajax({
+						type: "get",
+						url:url,
+						data: {},
+						dataType:'json',
+						success:function(result){
+							//获取高德坐标
+							var gdLocation = result.locations;
+							bdToGetGdAddress(areaName,name,bdLocation,gdLocation);
+						},
+						error:function(data){
+							countNum = countNum+1;
+							noNum=noNum+1;
+							$("#offNum").text(noNum);
+							if(countNum == allNum){
+								removeLoadingWindow();
+								$.jBox.info('数据转换完毕','提示',{top:'40%'});
+							}
+						}
+				  	});
+				};
+			    function gdGetAddress(areaName,gdLocation,name){
+			    	var locations = gdLocation.split(",");
+					var x = (Number(locations[0])).toFixed(6);
+					var y = (Number(locations[1])).toFixed(6);
+					var url = "http://restapi.amap.com/v3/geocode/regeo?output=json&location="+x+","+y+"&key=4545233705058d936b933642e6530f6f&radius=1000&extensions=all";
+					 $.ajax({
+						type: "get",
+						url:url,
+						data: {},
+						dataType:'json',
+						success: function(result){
+							gdTobdLocation(result,areaName,name,gdLocation)
+						},
+						error:function(data){
+							countNum = countNum+1;
+							noNum=noNum+1;
+							$("#offNum").text(noNum);
+							if(countNum == allNum){
+								removeLoadingWindow();
+								$.jBox.info('数据转换完毕','提示',{top:'40%'});
+							}
+						}
+				  	});
+			    };
+			    function gdTobdLocation(result,areaName,name,gdLocation){
+					var locations = gdLocation.split(",");
+					var x = (Number(locations[0])).toFixed(6);
+					var y = (Number(locations[1])).toFixed(6);
+					var url = "http://api.map.baidu.com/geoconv/v1/?coords="+x+","+y+"&from=3&to=5&ak=kGoAnw34FEtbZ4HkbM1EBCBSBCIih6xo";
+					$.ajax({
+						type: "get",
+						url:url,
+						data: {},
+						dataType:'jsonp',
+						success:function(locationResult){
+							var bd_x = locationResult.result[0]["x"];
+							var bd_y = locationResult.result[0]["y"];
+							var bdLocation = bd_x+","+bd_y;
+							toTable(result,areaName,name,bdLocation,gdLocation);
+						},
+						error:function(data){
+							countNum = countNum+1;
+							noNum=noNum+1;
+							$("#offNum").text(noNum);
+							if(countNum == allNum){
+								removeLoadingWindow();
+								$.jBox.info('数据转换完毕','提示',{top:'40%'});
+							}
+						}
+				  	});
+				};
+				function bdToGetGdAddress(areaName,name,bdLocation,gdLocation){
+					var locations = gdLocation.split(",");
+					var x = (Number(locations[0])).toFixed(6);
+					var y = (Number(locations[1])).toFixed(6);
+					var url = "http://restapi.amap.com/v3/geocode/regeo?output=json&location="+x+","+y+"&key=4545233705058d936b933642e6530f6f&radius=1000&extensions=all";
+					 $.ajax({
+						type: "get",
+						url:url,
+						data: {},
+						dataType:'json',
+						success: function(result){
+							toTable(result,areaName,name,bdLocation,gdLocation);
+						},
+						error:function(data){
+							countNum = countNum+1;
+							noNum=noNum+1;
+							$("#offNum").text(noNum);
+							if(countNum == allNum){
+								removeLoadingWindow();
+								$.jBox.info('数据转换完毕','提示',{top:'40%'});
+							}
+						}
+				  	});
+				};
+			    function toTable(result,areaName,name,bdLocation,gdLocation){
+			    	clearTimeout(timer);
+					var regeocode = result.regeocode;
+					var addressComponent = regeocode.addressComponent;
+					var trHtml = [];
+					trHtml.push('<tr>');
+					trHtml.push('<td>'+ name +'</td>');
+					trHtml.push('<td>'+(regeocode.formatted_address || "")+'</td>');
+					trHtml.push('<td>'+gdLocation+'</td>');
+					trHtml.push('<td>'+bdLocation+'</td>');
+					trHtml.push('<td>'+(addressComponent.province || "")+'</td>');
+					trHtml.push('<td>'+(addressComponent.city || "")+'</td>');
+					trHtml.push('<td>'+(addressComponent.district || "")+'</td>');
+					trHtml.push('<td>'+(addressComponent.township || "")+'</td>');
+					trHtml.push('<td>'+(regeocode.formatted_address || "")+'</td>');
+					trHtml.push('<td>'+2+'</td>');
+					trHtml.push('</tr>');
+					$("#export_tbody").append(trHtml.join(""));
+					okNum = okNum+1
+			    	countNum = countNum+1;
+			    	$("#okNum").text(okNum);
+			    	if(countNum == allNum){
+						removeLoadingWindow();
+						$("#offNum").text(allNum-okNum);
+						$.jBox.info('数据转换完毕!','提示',{top:'40%'});
+					}else{
+						timer = setTimeout(function(){
+							removeLoadingWindow();
+							$.jBox.info('网络服务请求延时,现在可以导出数据或继续等待数据转换完毕！','提示',{top:'40%'});
+						},20000)
+					}
+				};
+			    
+			});
+		</script>
+	</body>
+</html>
